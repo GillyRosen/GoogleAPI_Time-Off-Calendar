@@ -1,0 +1,57 @@
+function scheduleShifts() {
+  // Get the active spreadsheet and the sheet containing the shift data.
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("FormResponses"); // Replace "FormResponses" with your actual sheet name
+
+  // **IMPORTANT:** Replace this with your Google Calendar ID.
+  var calendarID = "YOUR_CALENDAR_ID"; 
+  var eventCal = CalendarApp.getCalendarById(calendarID);
+
+  // Get the shift data from the spreadsheet.
+  // Assumes shift data starts from C2 and goes to column K. Adjust the range "C2:K999" if needed.
+  var signups = ss.getRange("C2:K999").getValues();
+
+  // Get all existing events in the calendar within a wide date range.
+  var calEvents = eventCal.getEvents(new Date("01/01/2023 9:00:00"), new Date("12/12/2099 9:00:00"));
+
+  // Loop through all the shifts in the spreadsheet.
+  for (x=0; x<signups.length; x++){
+    var shift = signups[x];
+    var startTime = shift[0];
+    var endTime = shift[1];
+    var title = shift[3] + "_Out of office"; // Customize the event title as needed
+    var approvalStatus = shift[8]; 
+    var RequestNumber = shift [7];
+
+    // Only process if there's a title.
+    if (title != '') {
+      if (approvalStatus == "Complete") {
+        var foundEvent = false;
+
+        // Check if an event with the same details already exists.
+        for (y=0; y<calEvents.length; y++) {
+          var sameStartTime = calEvents[y].getStartTime().toString() == new Date(startTime).toString();
+          var sameEndTime = calEvents[y].getEndTime().toString() == new Date(endTime).toString();
+          var sameTitle = calEvents[y].getTitle() == title;
+
+          if (sameTitle && sameStartTime && sameEndTime) {
+            Logger.log("Found event for " + " Number " + RequestNumber + " " + title + " " + startTime + " " + endTime + ". Skipping!");
+            foundEvent = true;
+            break;
+          }
+        }
+
+        // If no matching event is found, create a new event.
+        if (!foundEvent) {
+          eventCal.createEvent(title, startTime, endTime);
+          Logger.log("Created event for " + title + " Number " + RequestNumber);
+        }
+      }
+    }
+
+    // Stop processing if no more start times are found (end of data).
+    if (startTime == '') {
+      break; 
+    }
+  }
+}
